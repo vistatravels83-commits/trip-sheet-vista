@@ -1,8 +1,7 @@
-
-import { jsPDF } from 'jspdf';
-import JSZip from 'jszip';
 import { TripData, AppSettings } from '../types';
 import { format, isValid } from 'date-fns';
+
+// ... (keep existing helper functions)
 
 /**
  * Enhanced downloader that ensures the blob is valid and handles the anchor click more safely.
@@ -12,18 +11,18 @@ const triggerDownload = (blob: Blob, filename: string) => {
     console.error("PDF generation resulted in an empty file.");
     return;
   }
-  
+
   try {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
-    
+
     // Position off-screen and append to ensure it's "interactive"
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
-    
+
     // Delay cleanup to ensure browser captures the click event
     setTimeout(() => {
       if (document.body.contains(link)) {
@@ -60,6 +59,9 @@ const isValidBase64Image = (str: string | undefined): boolean => {
   return str.startsWith('data:image/') && str.includes(';base64,') && str.length > 50;
 };
 
+// We need to import the type for type checking, but not the value
+import type { jsPDF } from 'jspdf';
+
 const drawBranding = (doc: jsPDF, x: number, y: number, settings: AppSettings) => {
   if (!settings) return;
   doc.setLineWidth(1);
@@ -69,41 +71,41 @@ const drawBranding = (doc: jsPDF, x: number, y: number, settings: AppSettings) =
 
   if (isValidBase64Image(settings.logoBase64)) {
     try {
-        // Render Logo
-        // @ts-ignore
-        const imgProps = doc.getImageProperties(settings.logoBase64);
-        const ratio = imgProps.height / imgProps.width;
-       
-        const width = 30;
-        const height = width * ratio;
+      // Render Logo
+      // @ts-ignore
+      const imgProps = doc.getImageProperties(settings.logoBase64);
+      const ratio = imgProps.height / imgProps.width;
 
-        doc.addImage(settings.logoBase64, 'JPEG', x, y - 2, width, height, undefined, 'FAST');
-        
-        // Render Company Name Text next to logo
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(18);
-        doc.setTextColor(COLORS.primary[0], COLORS.primary[1], COLORS.primary[2]);
-        doc.text(agencyText, x + 35, y + 7);
+      const width = 30;
+      const height = width * ratio;
+
+      doc.addImage(settings.logoBase64, 'JPEG', x, y - 2, width, height, undefined, 'FAST');
+
+      // Render Company Name Text next to logo
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.setTextColor(COLORS.primary[0], COLORS.primary[1], COLORS.primary[2]);
+      doc.text(agencyText, x + 35, y + 7);
     } catch (e) {
-        console.warn("Logo image error, using text fallback", e);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(22);
-        doc.setTextColor(COLORS.primary[0], COLORS.primary[1], COLORS.primary[2]);
-        doc.text(agencyText, x, y + 9);
-    }
-  } else {
-      // Default Logo Graphics (Abstract car shape)
-      doc.setDrawColor(220, 38, 38); 
-      doc.line(x, y + 5, x + 10, y);
-      doc.setDrawColor(6, 182, 212); 
-      doc.line(x + 2, y + 7, x + 12, y + 2);
-      doc.setDrawColor(34, 197, 94); 
-      doc.line(x + 4, y + 9, x + 14, y + 4);
-
+      console.warn("Logo image error, using text fallback", e);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
       doc.setTextColor(COLORS.primary[0], COLORS.primary[1], COLORS.primary[2]);
-      doc.text(agencyText, x + 20, y + 9);
+      doc.text(agencyText, x, y + 9);
+    }
+  } else {
+    // Default Logo Graphics (Abstract car shape)
+    doc.setDrawColor(220, 38, 38);
+    doc.line(x, y + 5, x + 10, y);
+    doc.setDrawColor(6, 182, 212);
+    doc.line(x + 2, y + 7, x + 12, y + 2);
+    doc.setDrawColor(34, 197, 94);
+    doc.line(x + 4, y + 9, x + 14, y + 4);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(COLORS.primary[0], COLORS.primary[1], COLORS.primary[2]);
+    doc.text(agencyText, x + 20, y + 9);
   }
 };
 
@@ -111,7 +113,7 @@ const formatDateTimeSafe = (isoString?: string) => {
   if (!isoString) return '-';
   try {
     const d = new Date(isoString);
-    if (isValid(d)) return format(d, 'dd/MM/yyyy h:mm a'); 
+    if (isValid(d)) return format(d, 'dd/MM/yyyy h:mm a');
     return String(isoString).replace('T', ' ');
   } catch {
     return String(isoString || '-');
@@ -129,8 +131,9 @@ const formatDateOnlySafe = (isoString?: string) => {
   }
 };
 
-export const generateSinglePDF = (trip: TripData, settings: AppSettings, save = true): jsPDF => {
+export const generateSinglePDF = async (trip: TripData, settings: AppSettings, save = true): Promise<jsPDF> => {
   try {
+    const { jsPDF } = await import('jspdf');
     // Initializing jsPDF with explicit options
     const doc = new jsPDF({
       orientation: 'landscape',
@@ -139,7 +142,7 @@ export const generateSinglePDF = (trip: TripData, settings: AppSettings, save = 
       putOnlyUsedFonts: true,
       compress: true
     });
-    
+
     // External Frame
     doc.setDrawColor(COLORS.primary[0], COLORS.primary[1], COLORS.primary[2]);
     doc.setLineWidth(0.5);
@@ -151,7 +154,7 @@ export const generateSinglePDF = (trip: TripData, settings: AppSettings, save = 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(COLORS.text[0], COLORS.text[1], COLORS.text[2]);
-    
+
     doc.text(String(settings.addressLine1 || ''), addressX, 12, { align: 'right' });
     doc.text(String(settings.addressLine2 || ''), addressX, 16, { align: 'right' });
     doc.text(`Cell: ${String(settings.contactNumber || '')}`, addressX, 20, { align: 'right' });
@@ -160,7 +163,7 @@ export const generateSinglePDF = (trip: TripData, settings: AppSettings, save = 
     const titleY = 32;
     doc.setFillColor(COLORS.primary[0], COLORS.primary[1], COLORS.primary[2]);
     doc.rect(MARGIN, titleY, CONTENT_WIDTH, 8, 'F');
-    
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(255, 255, 255);
@@ -170,7 +173,7 @@ export const generateSinglePDF = (trip: TripData, settings: AppSettings, save = 
     let headerCenterText = `Booking No: ${String(trip.id || '________')}`;
     if (trip.tripType) headerCenterText += `  |  ${String(trip.tripType)}`;
     doc.text(headerCenterText, PAGE_WIDTH / 2, titleY + 5.5, { align: 'center' });
-    
+
     const tripDate = formatDateOnlySafe(trip.startDateTime);
     doc.text(`Date: ${tripDate}`, PAGE_WIDTH - MARGIN - 4, titleY + 5.5, { align: 'right' });
 
@@ -181,7 +184,7 @@ export const generateSinglePDF = (trip: TripData, settings: AppSettings, save = 
       doc.setTextColor(COLORS.label[0], COLORS.label[1], COLORS.label[2]);
       doc.setFontSize(8);
       doc.text(String(label), x, y);
-      
+
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(10);
@@ -195,7 +198,7 @@ export const generateSinglePDF = (trip: TripData, settings: AppSettings, save = 
     const h2 = drawField("Booked By", trip.bookedBy, MARGIN + 65, 40);
     const h3 = drawField("Report To", trip.reportTo || '-', MARGIN + 107, 40);
     const h4 = drawField("Vehicle Reg No", trip.vehicleRegNo, MARGIN + 150, 30);
-    
+
     y += Math.max(h1, h2, h3, h4) + 8;
 
     const h5 = drawField("Car Type", trip.carType || '-', MARGIN + 2, 60);
@@ -208,7 +211,6 @@ export const generateSinglePDF = (trip: TripData, settings: AppSettings, save = 
     if (trip.destination && String(trip.destination).trim()) {
       h7 = drawField("To (Destination)", trip.destination, MARGIN + 130, 40);
     }
-    
 
     y += Math.max(h5, h6, h7) + 8;
 
@@ -230,16 +232,16 @@ export const generateSinglePDF = (trip: TripData, settings: AppSettings, save = 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.setTextColor(COLORS.text[0], COLORS.text[1], COLORS.text[2]);
-    
+
     const textCenter = (txt: string, x: number, offY: number) => {
-      doc.text(String(txt), x + (colW/2), y + offY, { align: 'center' });
+      doc.text(String(txt), x + (colW / 2), y + offY, { align: 'center' });
     };
     textCenter("STARTING", MARGIN, 5.5);
     textCenter("CLOSING", MARGIN + colW, 5.5);
     textCenter("TOTAL", MARGIN + (colW * 2), 5.5);
 
     const startKmVal = Number(trip.startKm || 0);
-    const finalEndKm = Number(trip.endKm || 0) + Number(trip.additionalKm || 0); 
+    const finalEndKm = Number(trip.endKm || 0) + Number(trip.additionalKm || 0);
     const totalKmDist = finalEndKm - startKmVal;
     const startTimeStr = formatDateTimeSafe(trip.startDateTime);
     const endTimeStr = formatDateTimeSafe(trip.endDateTime);
@@ -254,7 +256,7 @@ export const generateSinglePDF = (trip: TripData, settings: AppSettings, save = 
       doc.setFontSize(8);
       doc.text(String(label), xBase + 4, rowY);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(0,0,0);
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(9);
       doc.text(String(val), xBase + colW - 4, rowY, { align: 'right' });
     };
@@ -278,7 +280,7 @@ export const generateSinglePDF = (trip: TripData, settings: AppSettings, save = 
     doc.setTextColor(COLORS.primary[0], COLORS.primary[1], COLORS.primary[2]);
     doc.text(`Rs. ${String(trip.tollParking || 0)}`, MARGIN + 4, y + 15);
 
-    const sigW = 50; 
+    const sigW = 50;
     const sigH = 20;
     const sigX = PAGE_WIDTH - MARGIN - sigW;
     const sigY = y;
@@ -322,13 +324,15 @@ export const generateSinglePDF = (trip: TripData, settings: AppSettings, save = 
 
 export const generateBulkPDF = async (trips: TripData[], settings: AppSettings) => {
   try {
+    const JSZipModule = await import('jszip');
+    const JSZip = JSZipModule.default;
     const zip = new JSZip();
     const folder = zip.folder("tripsheets");
     if (!folder) throw new Error("ZIP library error");
 
     for (const trip of trips) {
       try {
-        const doc = generateSinglePDF(trip, settings, false);
+        const doc = await generateSinglePDF(trip, settings, false);
         const pdfBlob = doc.output('blob');
         const safeId = String(trip.id || trip.timestamp || Date.now()).replace(/[^a-z0-9]/gi, '_').slice(0, 15);
         folder.file(`Tripsheet_${String(trip.vehicleRegNo).replace(/[^a-z0-9]/gi, '_')}_${safeId}.pdf`, pdfBlob);
