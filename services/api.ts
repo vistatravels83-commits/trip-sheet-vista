@@ -1,0 +1,291 @@
+import { createClient } from '@supabase/supabase-js';
+import { TripData, AppSettings } from '../types';
+
+// ==============================================================================
+// CONFIGURATION & SAFE INITIALIZATION
+// ==============================================================================
+
+/**
+ * Robustly retrieves environment variables, checking:
+ * 1. Vite's import.meta.env (with and without VITE_ prefix)
+ * 2. Node's process.env (with and without VITE_ prefix)
+ */
+const getEnvVar = (key: string, fallback: string): string => {
+  const variations = [key, `VITE_${key}`, `REACT_APP_${key}`];
+  
+  // 1. Try import.meta.env (Vite)
+  try {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      for (const v of variations) {
+        // @ts-ignore
+        if (import.meta.env[v]) return import.meta.env[v];
+      }
+    }
+  } catch (e) {}
+
+  // 2. Try process.env (Standard Node/Netlify)
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      for (const v of variations) {
+        if (process.env[v]) return process.env[v];
+      }
+    }
+  } catch (e) {}
+
+  return fallback;
+};
+
+const SUPABASE_URL = getEnvVar('SUPABASE_URL', 'INSERT_YOUR_SUPABASE_URL');
+const SUPABASE_KEY = getEnvVar('SUPABASE_KEY', 'INSERT_YOUR_SUPABASE_KEY');
+
+// Initialize Supabase Client safely
+let supabase: any = null;
+
+const isConfigured = SUPABASE_URL && SUPABASE_URL.startsWith('http') && !SUPABASE_URL.includes('INSERT_YOUR');
+
+if (isConfigured) {
+  try {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  } catch (err) {
+    console.error("Supabase Initialization Failed:", err);
+    supabase = null;
+  }
+} else {
+  console.warn("Supabase Config Missing: URL/Key not found. App running in offline/demo mode.");
+}
+
+export const DEFAULT_COMPANIES = ["Vista Travels HQ"];
+export const DEFAULT_CAR_TYPES = ["Sedan", "SUV", "Innova", "Crysta", "Tempo Traveller"];
+
+const DEFAULT_SETTINGS: AppSettings = {
+  agencyName: "Vista Travels",
+  addressLine1: "No. 51, Brodies Road, Karayanchavadi,",
+  addressLine2: "Poonamallee, Chennai - 600056",
+  contactNumber: "+91 98400 12345",
+  email: "bookings@vistatravels.com",
+};
+
+// --- Helpers for Data Mapping (DB Snake_Case <-> App CamelCase) ---
+
+const mapTripFromDB = (row: any): TripData => ({
+  id: row.trip_id || '', 
+  companyName: row.company_name,
+  bookedBy: row.booked_by,
+  reportTo: row.report_to,
+  carType: row.car_type,
+  tripType: row.trip_type,
+  source: row.source,
+  destination: row.destination,
+  vehicleRegNo: row.vehicle_reg_no,
+  startKm: row.start_km,
+  endKm: row.end_km,
+  totalKm: row.total_km,
+  startDateTime: row.start_date_time,
+  endDateTime: row.end_date_time,
+  totalTime: row.total_time,
+  tollParking: row.toll_parking,
+  additionalKm: row.additional_km,
+  signature: row.signature,
+  timestamp: row.created_at
+});
+
+const mapTripToDB = (data: TripData) => ({
+  trip_id: data.id,
+  company_name: data.companyName,
+  booked_by: data.bookedBy,
+  report_to: data.reportTo,
+  car_type: data.carType,
+  trip_type: data.tripType,
+  source: data.source,
+  destination: data.destination,
+  vehicle_reg_no: data.vehicleRegNo,
+  start_km: data.startKm,
+  end_km: data.endKm,
+  total_km: data.totalKm,
+  start_date_time: data.startDateTime,
+  end_date_time: data.endDateTime,
+  total_time: data.totalTime,
+  toll_parking: data.tollParking,
+  additional_km: data.additionalKm,
+  signature: data.signature,
+  created_at: data.timestamp
+});
+
+// --- API Functions ---
+
+export const getAllDashboardData = async (): Promise<any> => {
+  // If not configured, return cached data or default empty state immediately
+  if (!supabase) {
+    const cached = sessionStorage.getItem('vista_cache_all');
+    if (cached) return JSON.parse(cached);
+    return { 
+      trips: [], 
+      companies: DEFAULT_COMPANIES, 
+      carTypes: DEFAULT_CAR_TYPES, 
+      settings: DEFAULT_SETTINGS,
+      fetchError: "Supabase credentials missing"
+    };
+  }
+
+  try {
+    // Parallel fetch for efficiency
+    const [tripsRes, companiesRes, carTypesRes, settingsRes] = await Promise.all([
+      supabase.from('trips').select('*').order('created_at', { ascending: false }),
+      supabase.from('companies').select('name').order('name'),
+      supabase.from('car_types').select('name').order('name'),
+      supabase.from('settings').select('*')
+    ]);
+
+    if (tripsRes.error) throw tripsRes.error;
+    if (companiesRes.error) throw companiesRes.error;
+
+    // Transform Data
+    const trips = (tripsRes.data || []).map(mapTripFromDB);
+    const companies = (companiesRes.data || []).map((c: any) => c.name);
+    const carTypes = (carTypesRes.data || []).map((c: any) => c.name);
+    
+    // Transform Settings
+    const settingsObj: any = { ...DEFAULT_SETTINGS };
+    (settingsRes.data || []).forEach((row: any) => {
+      settingsObj[row.key] = row.value;
+    });
+
+    const fullData = { 
+      trips, 
+      companies: companies.length ? companies : DEFAULT_COMPANIES,
+      carTypes: carTypes.length ? carTypes : DEFAULT_CAR_TYPES,
+      settings: settingsObj 
+    };
+
+    // Cache for offline support
+    sessionStorage.setItem('vista_cache_all', JSON.stringify(fullData));
+    
+    return fullData;
+
+  } catch (error: any) {
+    console.error("Supabase API Error:", error);
+    
+    // Fallback to cache
+    const cached = sessionStorage.getItem('vista_cache_all');
+    if (cached) return JSON.parse(cached);
+
+    return { 
+      trips: [], 
+      companies: DEFAULT_COMPANIES, 
+      carTypes: DEFAULT_CAR_TYPES, 
+      settings: DEFAULT_SETTINGS,
+      fetchError: error.message || "Connection Failed"
+    };
+  }
+};
+
+export const saveTrip = async (data: TripData): Promise<boolean> => {
+  if (!supabase) {
+    console.error("Cannot save trip: Supabase not configured");
+    throw new Error("Database not connected. Please check configuration.");
+  }
+
+  try {
+    const dbPayload = mapTripToDB(data);
+    const { error } = await supabase.from('trips').insert([dbPayload]);
+    
+    if (error) throw error;
+    return true;
+  } catch (error: any) {
+    console.error("Save Trip Error:", error);
+    throw new Error(error.message || "Failed to save trip");
+  }
+};
+
+export const updateTrip = async (timestamp: string, updates: Partial<TripData>): Promise<boolean> => {
+  if (!supabase) return false;
+
+  try {
+    // Map the updates to DB columns
+    const dbUpdates: any = {};
+    if (updates.id !== undefined) dbUpdates.trip_id = updates.id;
+    if (updates.companyName !== undefined) dbUpdates.company_name = updates.companyName;
+    if (updates.bookedBy !== undefined) dbUpdates.booked_by = updates.bookedBy;
+    if (updates.reportTo !== undefined) dbUpdates.report_to = updates.reportTo;
+    if (updates.carType !== undefined) dbUpdates.car_type = updates.carType;
+    if (updates.tripType !== undefined) dbUpdates.trip_type = updates.tripType;
+    if (updates.source !== undefined) dbUpdates.source = updates.source;
+    if (updates.destination !== undefined) dbUpdates.destination = updates.destination;
+    if (updates.vehicleRegNo !== undefined) dbUpdates.vehicle_reg_no = updates.vehicleRegNo;
+    if (updates.startKm !== undefined) dbUpdates.start_km = updates.startKm;
+    if (updates.endKm !== undefined) dbUpdates.end_km = updates.endKm;
+    if (updates.totalKm !== undefined) dbUpdates.total_km = updates.totalKm;
+    if (updates.startDateTime !== undefined) dbUpdates.start_date_time = updates.startDateTime;
+    if (updates.endDateTime !== undefined) dbUpdates.end_date_time = updates.endDateTime;
+    if (updates.totalTime !== undefined) dbUpdates.total_time = updates.totalTime;
+    if (updates.tollParking !== undefined) dbUpdates.toll_parking = updates.tollParking;
+    if (updates.additionalKm !== undefined) dbUpdates.additional_km = updates.additionalKm;
+
+    const { error } = await supabase
+      .from('trips')
+      .update(dbUpdates)
+      .eq('created_at', timestamp);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Update Trip Error:", error);
+    return false;
+  }
+};
+
+export const addCompany = async (name: string): Promise<boolean> => {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('companies').insert([{ name }]);
+    return !error;
+  } catch (error) {
+    return false;
+  }
+};
+
+export const deleteCompany = async (name: string): Promise<boolean> => {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('companies').delete().eq('name', name);
+    return !error;
+  } catch (error) {
+    return false;
+  }
+};
+
+export const addCarType = async (name: string): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase.from('car_types').insert([{ name }]);
+      return !error;
+    } catch (error) {
+      return false;
+    }
+};
+
+export const deleteCarType = async (name: string): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase.from('car_types').delete().eq('name', name);
+      return !error;
+    } catch (error) {
+      return false;
+    }
+};
+
+export const saveSettings = async (settings: AppSettings): Promise<boolean> => {
+  if (!supabase) return false;
+  try {
+    const upserts = Object.entries(settings).map(([key, value]) => ({
+      key,
+      value: String(value)
+    }));
+    
+    const { error } = await supabase.from('settings').upsert(upserts);
+    return !error;
+  } catch (error) {
+    return false;
+  }
+};

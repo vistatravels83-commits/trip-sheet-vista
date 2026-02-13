@@ -1,0 +1,33 @@
+
+/* Global Styles for Vista Travels */
+:root {
+  --primary-blue: #1e40af;
+  --bg-slate: #f8fafc;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure smooth transitions for interactive elements */
+button, input, select {
+  transition: all 0.2s ease;
+}
+
+/* Hide scrollbars but keep functionality where needed */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Prevent canvas clearing on some mobile browsers during scroll */
+.signature-canvas {
+  touch-action: none;
+  cursor: crosshair;
+}
