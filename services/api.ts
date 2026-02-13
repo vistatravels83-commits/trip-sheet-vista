@@ -12,7 +12,7 @@ import { TripData, AppSettings } from '../types';
  */
 const getEnvVar = (key: string, fallback: string): string => {
   const variations = [key, `VITE_${key}`, `REACT_APP_${key}`];
-  
+
   // 1. Try import.meta.env (Vite)
   try {
     // @ts-ignore
@@ -22,7 +22,7 @@ const getEnvVar = (key: string, fallback: string): string => {
         if (import.meta.env[v]) return import.meta.env[v];
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 2. Try process.env (Standard Node/Netlify)
   try {
@@ -31,7 +31,7 @@ const getEnvVar = (key: string, fallback: string): string => {
         if (process.env[v]) return process.env[v];
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   return fallback;
 };
@@ -69,7 +69,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 // --- Helpers for Data Mapping (DB Snake_Case <-> App CamelCase) ---
 
 const mapTripFromDB = (row: any): TripData => ({
-  id: row.trip_id || '', 
+  id: row.trip_id || '',
   companyName: row.company_name,
   bookedBy: row.booked_by,
   reportTo: row.report_to,
@@ -119,10 +119,10 @@ export const getAllDashboardData = async (): Promise<any> => {
   if (!supabase) {
     const cached = sessionStorage.getItem('vista_cache_all');
     if (cached) return JSON.parse(cached);
-    return { 
-      trips: [], 
-      companies: DEFAULT_COMPANIES, 
-      carTypes: DEFAULT_CAR_TYPES, 
+    return {
+      trips: [],
+      companies: DEFAULT_COMPANIES,
+      carTypes: DEFAULT_CAR_TYPES,
       settings: DEFAULT_SETTINGS,
       fetchError: "Supabase credentials missing"
     };
@@ -144,36 +144,36 @@ export const getAllDashboardData = async (): Promise<any> => {
     const trips = (tripsRes.data || []).map(mapTripFromDB);
     const companies = (companiesRes.data || []).map((c: any) => c.name);
     const carTypes = (carTypesRes.data || []).map((c: any) => c.name);
-    
+
     // Transform Settings
     const settingsObj: any = { ...DEFAULT_SETTINGS };
     (settingsRes.data || []).forEach((row: any) => {
       settingsObj[row.key] = row.value;
     });
 
-    const fullData = { 
-      trips, 
+    const fullData = {
+      trips,
       companies: companies.length ? companies : DEFAULT_COMPANIES,
       carTypes: carTypes.length ? carTypes : DEFAULT_CAR_TYPES,
-      settings: settingsObj 
+      settings: settingsObj
     };
 
     // Cache for offline support
     sessionStorage.setItem('vista_cache_all', JSON.stringify(fullData));
-    
+
     return fullData;
 
   } catch (error: any) {
     console.error("Supabase API Error:", error);
-    
+
     // Fallback to cache
     const cached = sessionStorage.getItem('vista_cache_all');
     if (cached) return JSON.parse(cached);
 
-    return { 
-      trips: [], 
-      companies: DEFAULT_COMPANIES, 
-      carTypes: DEFAULT_CAR_TYPES, 
+    return {
+      trips: [],
+      companies: DEFAULT_COMPANIES,
+      carTypes: DEFAULT_CAR_TYPES,
       settings: DEFAULT_SETTINGS,
       fetchError: error.message || "Connection Failed"
     };
@@ -189,7 +189,7 @@ export const saveTrip = async (data: TripData): Promise<boolean> => {
   try {
     const dbPayload = mapTripToDB(data);
     const { error } = await supabase.from('trips').insert([dbPayload]);
-    
+
     if (error) throw error;
     return true;
   } catch (error: any) {
@@ -221,6 +221,7 @@ export const updateTrip = async (timestamp: string, updates: Partial<TripData>):
     if (updates.totalTime !== undefined) dbUpdates.total_time = updates.totalTime;
     if (updates.tollParking !== undefined) dbUpdates.toll_parking = updates.tollParking;
     if (updates.additionalKm !== undefined) dbUpdates.additional_km = updates.additionalKm;
+    if (updates.signature !== undefined) dbUpdates.signature = updates.signature;
 
     const { error } = await supabase
       .from('trips')
@@ -256,23 +257,23 @@ export const deleteCompany = async (name: string): Promise<boolean> => {
 };
 
 export const addCarType = async (name: string): Promise<boolean> => {
-    if (!supabase) return false;
-    try {
-      const { error } = await supabase.from('car_types').insert([{ name }]);
-      return !error;
-    } catch (error) {
-      return false;
-    }
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('car_types').insert([{ name }]);
+    return !error;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const deleteCarType = async (name: string): Promise<boolean> => {
-    if (!supabase) return false;
-    try {
-      const { error } = await supabase.from('car_types').delete().eq('name', name);
-      return !error;
-    } catch (error) {
-      return false;
-    }
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('car_types').delete().eq('name', name);
+    return !error;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const saveSettings = async (settings: AppSettings): Promise<boolean> => {
@@ -282,7 +283,7 @@ export const saveSettings = async (settings: AppSettings): Promise<boolean> => {
       key,
       value: String(value)
     }));
-    
+
     const { error } = await supabase.from('settings').upsert(upserts);
     return !error;
   } catch (error) {

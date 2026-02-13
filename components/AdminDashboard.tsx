@@ -142,7 +142,8 @@ const AdminDashboard: React.FC = () => {
                 reportTo: trip.reportTo,
                 startKm: trip.startKm,
                 endKm: trip.endKm,
-                carType: trip.carType
+                carType: trip.carType,
+                signature: trip.signature
             });
         } catch (e) {
             console.error("Save failed", e);

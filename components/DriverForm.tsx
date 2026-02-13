@@ -133,8 +133,8 @@ const DriverForm: React.FC = () => {
           ctx.fillRect(0, 0, white.width, white.height);
           // Draw scaled image
           ctx.drawImage(trimmed, 0, 0, trimmed.width, trimmed.height, 0, 0, newWidth, newHeight);
-          // Moderate compression (0.5) is usually sufficient for signatures
-          signatureData = white.toDataURL('image/jpeg', 0.5);
+          // High signature quality (0.9) ensures it looks sharp in the PDF
+          signatureData = white.toDataURL('image/jpeg', 0.9);
         }
       }
 

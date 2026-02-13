@@ -296,8 +296,17 @@ export const generateSinglePDF = async (trip: TripData, settings: AppSettings, s
       try {
         let formatImg = 'JPEG';
         if (trip.signature.startsWith('data:image/png')) formatImg = 'PNG';
-        // @ts-ignore
-        doc.addImage(trip.signature, formatImg, sigX + 1, sigY + 1, sigW - 2, sigH - 5, undefined, 'FAST');
+
+        doc.addImage({
+          imageData: trip.signature,
+          format: formatImg as any,
+          x: sigX + 1,
+          y: sigY + 1,
+          width: sigW - 2,
+          height: sigH - 5,
+          alias: undefined,
+          compression: 'FAST'
+        });
       } catch (e) {
         console.warn("Signature Image Render Error", e);
       }
