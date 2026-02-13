@@ -1,11 +1,6 @@
 
 describe('Driver Form', () => {
     beforeEach(() => {
-        cy.visit('/');
-        // Mock Supabase calls if necessary, or rely on live/dev database if configured. 
-        // For this E2E, we'll assume the app is running and connected.
-        // Ideally we should intercept network requests to avoid polluting DB.
-
         // Intercept Supabase calls
         cy.intercept('GET', '**/rest/v1/companies*', {
             statusCode: 200,
@@ -21,6 +16,11 @@ describe('Driver Form', () => {
             statusCode: 201,
             body: []
         }).as('saveTrip');
+
+        cy.visit('/');
+        // Mock Supabase calls if necessary, or rely on live/dev database if configured. 
+        // For this E2E, we'll assume the app is running and connected.
+        // Ideally we should intercept network requests to avoid polluting DB.
     });
 
     it('loads the form and shows online status', () => {

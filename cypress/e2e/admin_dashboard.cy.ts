@@ -1,8 +1,6 @@
 
 describe('Admin Dashboard', () => {
     beforeEach(() => {
-        cy.visit('/#/admin');
-
         // Intercept data fetching
         cy.intercept('GET', '**/rest/v1/trips*', {
             statusCode: 200,
@@ -21,6 +19,8 @@ describe('Admin Dashboard', () => {
                 }
             ]
         }).as('getTrips');
+
+        cy.visit('/#/admin');
     });
 
     it('accesses admin dashboard', () => {
