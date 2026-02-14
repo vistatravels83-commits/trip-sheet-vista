@@ -4,11 +4,11 @@ export interface TripData {
   // Merged fields
   startDateTime: string; // ISO string
   endDateTime: string; // ISO string
-  
+
   bookedBy: string;
   reportTo: string;
   carType: string; // New field
-  tripType: string; // New field: 'One way' | 'Round Trip'
+  tripType: string; // New field: 'Local' | 'Outstation'
   source: string; // New field
   destination: string; // New field
   vehicleRegNo: string;

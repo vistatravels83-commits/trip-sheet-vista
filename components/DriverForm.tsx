@@ -47,7 +47,7 @@ const DriverForm: React.FC = () => {
       tollParking: 0,
       companyName: '',
       carType: '',
-      tripType: 'One way',
+      tripType: 'Local',
       source: '',
       destination: '',
       vehicleRegNo: '',
@@ -170,7 +170,7 @@ const DriverForm: React.FC = () => {
         bookedBy: data.bookedBy || '',
         reportTo: data.reportTo || '',
         carType: data.carType || '',
-        tripType: data.tripType || 'One way',
+        tripType: data.tripType || 'Local',
         source: data.source || '',
         destination: data.destination || '',
         vehicleRegNo: (data.vehicleRegNo || '').toUpperCase(),
@@ -189,7 +189,7 @@ const DriverForm: React.FC = () => {
         setSubmitStatus('success');
         reset({
           startDate: getTodayDate(), startTime: getCurrentTime(), endDate: getTodayDate(), endTime: getCurrentTime(),
-          tollParking: 0, companyName: '', carType: '', tripType: 'One way',
+          tollParking: 0, companyName: '', carType: '', tripType: 'Local',
           source: '', destination: '', vehicleRegNo: '', startKm: 0, endKm: 0,
           bookedBy: '', reportTo: ''
         });
@@ -271,8 +271,8 @@ const DriverForm: React.FC = () => {
             <div>
               <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest mb-0.5 block">Trip Type</label>
               <select {...register('tripType', { required: true })} className={getFieldClass('tripType', "w-full p-2.5 bg-white border rounded-xl outline-none font-black text-slate-700 appearance-none shadow-sm cursor-pointer text-xs")}>
-                <option value="One way">One Way</option>
-                <option value="Round Trip">Round Trip</option>
+                <option value="Local">Local</option>
+                <option value="Outstation">Outstation</option>
               </select>
             </div>
           </div>

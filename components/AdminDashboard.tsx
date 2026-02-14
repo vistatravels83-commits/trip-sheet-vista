@@ -100,12 +100,12 @@ const TripRow = memo(({
                         {carTypes.map(ct => <option key={ct} value={ct}>{ct}</option>)}
                     </select>
                     <select
-                        value={trip.tripType || 'One way'}
+                        value={trip.tripType || 'Local'}
                         onChange={(e) => onUpdate(trip.timestamp, { tripType: e.target.value })}
                         onBlur={onSave}
                         className="w-1/2 text-[10px] p-1.5 border border-slate-200 rounded-xl bg-slate-50 focus:ring-4 focus:ring-primary/10 outline-none font-bold"
                     >
-                        <option value="One way">One way</option><option value="Round Trip">Round Trip</option>
+                        <option value="Local">Local</option><option value="Outstation">Outstation</option>
                     </select>
                 </div>
             </td>
