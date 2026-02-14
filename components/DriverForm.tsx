@@ -210,8 +210,8 @@ const DriverForm: React.FC = () => {
   }
 
   return (
-    <div className="max-w-lg mx-auto glass sm:rounded-[3rem] rounded-2xl overflow-hidden shadow-2xl border border-white/50 bg-white/40 animate-fade-in m-4">
-      <div className="glass-dark sm:p-10 p-6 text-white relative">
+    <div className="max-w-lg mx-auto glass sm:rounded-3xl rounded-2xl overflow-hidden shadow-2xl border border-white/50 bg-white/40 animate-fade-in m-2">
+      <div className="glass-dark sm:p-6 p-4 text-white relative">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl sm:text-4xl font-black font-outfit tracking-tighter uppercase">{agencyName}</h1>
           <p className="text-primary text-[10px] font-black tracking-[0.3em] uppercase flex items-center gap-2">
@@ -231,70 +231,70 @@ const DriverForm: React.FC = () => {
         )}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="sm:p-10 p-6 space-y-6 sm:space-y-8">
+      <form onSubmit={handleSubmit(onSubmit)} className="sm:p-6 p-4 space-y-4 sm:space-y-6">
         {/* Entity Choice */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="group">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 mb-3">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 mb-2">
               <Building2 className="w-4 h-4 text-primary" /> Company Name
             </label>
             <input
               list="companies" {...register('companyName', { required: true })}
-              className={getFieldClass('companyName', "w-full p-5 bg-white rounded-3xl outline-none transition-all shadow-inner font-bold text-slate-700 placeholder:text-slate-300 border")}
+              className={getFieldClass('companyName', "w-full p-3 bg-white rounded-xl outline-none transition-all shadow-inner font-bold text-slate-700 placeholder:text-slate-300 border text-sm")}
               placeholder="Select Company"
             />
             <datalist id="companies">{companyOptions.map(o => <option key={o} value={o} />)}</datalist>
           </div>
 
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block">Booked By</label>
-              <input {...register('bookedBy', { required: true })} className={getFieldClass('bookedBy', "w-full p-5 bg-white rounded-3xl focus:ring-4 outline-none shadow-inner font-bold border")} placeholder="Name" />
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block">Booked By</label>
+              <input {...register('bookedBy', { required: true })} className={getFieldClass('bookedBy', "w-full p-3 bg-white rounded-xl focus:ring-4 outline-none shadow-inner font-bold border text-sm")} placeholder="Name" />
             </div>
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block">Report To</label>
-              <input {...register('reportTo', { required: true })} className={getFieldClass('reportTo', "w-full p-5 bg-white rounded-3xl focus:ring-4 outline-none shadow-inner font-bold border")} placeholder="Name" />
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block">Report To</label>
+              <input {...register('reportTo', { required: true })} className={getFieldClass('reportTo', "w-full p-3 bg-white rounded-xl focus:ring-4 outline-none shadow-inner font-bold border text-sm")} placeholder="Name" />
             </div>
           </div>
         </div>
 
         {/* Vehicle Details */}
-        <div className="bg-amber-50/20 sm:p-8 p-6 sm:rounded-[2.5rem] rounded-2xl border border-amber-100/30 space-y-5 sm:space-y-6">
-          <div className="grid grid-cols-2 gap-4 sm:gap-5">
+        <div className="bg-amber-50/20 sm:p-5 p-4 sm:rounded-2xl rounded-xl border border-amber-100/30 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest mb-2 sm:mb-3 block">Car Type</label>
-              <select {...register('carType', { required: true })} className={getFieldClass('carType', "w-full sm:p-5 p-4 bg-white border rounded-xl sm:rounded-[1.5rem] outline-none font-black text-slate-700 appearance-none shadow-sm cursor-pointer text-sm sm:text-base")}>
+              <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest mb-1 block">Car Type</label>
+              <select {...register('carType', { required: true })} className={getFieldClass('carType', "w-full p-3 bg-white border rounded-xl outline-none font-black text-slate-700 appearance-none shadow-sm cursor-pointer text-xs")}>
                 <option value="">Choose Type</option>
                 {carTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest mb-2 sm:mb-3 block">Trip Type</label>
-              <select {...register('tripType', { required: true })} className={getFieldClass('tripType', "w-full sm:p-5 p-4 bg-white border rounded-xl sm:rounded-[1.5rem] outline-none font-black text-slate-700 appearance-none shadow-sm cursor-pointer text-sm sm:text-base")}>
+              <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest mb-1 block">Trip Type</label>
+              <select {...register('tripType', { required: true })} className={getFieldClass('tripType', "w-full p-3 bg-white border rounded-xl outline-none font-black text-slate-700 appearance-none shadow-sm cursor-pointer text-xs")}>
                 <option value="One way">One Way</option>
                 <option value="Round Trip">Round Trip</option>
               </select>
             </div>
           </div>
           <div>
-            <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest mb-2 sm:mb-3 block">Vehicle Registration Number</label>
-            <input {...register('vehicleRegNo', { required: true })} className={getFieldClass('vehicleRegNo', "w-full sm:p-5 p-4 bg-white border rounded-xl sm:rounded-[1.5rem] uppercase font-black text-xl sm:text-2xl tracking-widest outline-none shadow-sm text-amber-950 placeholder:text-slate-200")} placeholder="TN-00-AA-0000" />
+            <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest mb-1 block">Vehicle Registration Number</label>
+            <input {...register('vehicleRegNo', { required: true })} className={getFieldClass('vehicleRegNo', "w-full p-3 bg-white border rounded-xl uppercase font-black text-lg tracking-widest outline-none shadow-sm text-amber-950 placeholder:text-slate-200")} placeholder="TN-00-AA-0000" />
           </div>
         </div>
 
         {/* Mission Route */}
-        <div className="relative pt-2 pl-4">
-          <div className="absolute left-10 top-14 bottom-14 w-[1px] bg-slate-200 border-l border-dashed border-slate-300 opacity-50"></div>
-          <div className="space-y-6 sm:space-y-8">
-            <div className="relative pl-12 sm:pl-14">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white ring-4 ring-emerald-50 z-10 shadow-sm"></div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Source Point</label>
-              <input {...register('source', { required: true })} className={getFieldClass('source', "w-full sm:p-5 p-4 bg-white/40 border rounded-2xl sm:rounded-3xl outline-none shadow-sm font-bold text-sm sm:text-base")} placeholder="Departure" />
+        <div className="relative pt-1 pl-2">
+          <div className="absolute left-6 top-10 bottom-10 w-[1px] bg-slate-200 border-l border-dashed border-slate-300 opacity-50"></div>
+          <div className="space-y-4">
+            <div className="relative pl-10">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white ring-2 ring-emerald-50 z-10 shadow-sm"></div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Source Point</label>
+              <input {...register('source', { required: true })} className={getFieldClass('source', "w-full p-3 bg-white/40 border rounded-xl outline-none shadow-sm font-bold text-xs")} placeholder="Departure" />
             </div>
-            <div className="relative pl-12 sm:pl-14">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary border-4 border-white ring-4 ring-amber-50 z-10 shadow-sm"></div>
-              <label className="text-[10px] font-black text-amber-900/40 uppercase tracking-[0.3em] mb-2 block">Terminal Point</label>
-              <input {...register('destination', { required: true })} className={getFieldClass('destination', "w-full sm:p-5 p-4 bg-white/40 border rounded-2xl sm:rounded-3xl outline-none shadow-sm font-bold text-amber-950 text-sm sm:text-base")} placeholder="Arrival" />
+            <div className="relative pl-10">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border-2 border-white ring-2 ring-amber-50 z-10 shadow-sm"></div>
+              <label className="text-[10px] font-black text-amber-900/40 uppercase tracking-[0.3em] mb-1 block">Terminal Point</label>
+              <input {...register('destination', { required: true })} className={getFieldClass('destination', "w-full p-3 bg-white/40 border rounded-xl outline-none shadow-sm font-bold text-amber-950 text-xs")} placeholder="Arrival" />
             </div>
           </div>
         </div>
@@ -359,21 +359,21 @@ const DriverForm: React.FC = () => {
         </div>
 
         {/* Global Summary Tally */}
-        <div className="bg-primary sm:rounded-[2rem] rounded-2xl sm:p-8 p-6 text-amber-950 flex justify-between items-center shadow-2xl shadow-primary/20 group">
+        <div className="bg-primary sm:rounded-2xl rounded-xl sm:p-5 p-4 text-amber-950 flex justify-between items-center shadow-2xl shadow-primary/20 group">
           <div className="flex flex-col">
             <span className="text-[10px] font-black uppercase opacity-60 tracking-[0.2em]">Net Odo</span>
-            <span className="text-2xl sm:text-3xl font-black font-outfit">{totalKm} <span className="text-xs sm:text-sm opacity-50">KM</span></span>
+            <span className="text-xl sm:text-2xl font-black font-outfit">{totalKm} <span className="text-[10px] opacity-50">KM</span></span>
           </div>
-          <div className="h-10 sm:h-12 w-[1px] bg-amber-950/20"></div>
+          <div className="h-8 w-[1px] bg-amber-950/20"></div>
           <div className="flex flex-col text-right">
             <span className="text-[10px] font-black uppercase opacity-60 tracking-[0.2em]">Trip Duration</span>
-            <span className="text-2xl sm:text-3xl font-black font-outfit">{durationDisplay}</span>
+            <span className="text-xl sm:text-2xl font-black font-outfit">{durationDisplay}</span>
           </div>
         </div>
 
         {/* Cash Disbursements */}
         <div className="group">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between mb-3">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between mb-2">
             <span>Toll / Parking (Rs.)</span>
             <Activity className="w-4 h-4 text-primary" />
           </label>
@@ -385,45 +385,45 @@ const DriverForm: React.FC = () => {
               pattern: { value: /^(0|[1-9]\d*)$/, message: "Leading zeros not allowed" }
             })}
             onInput={handleNumericInput('tollParking', true)}
-            className={getFieldClass('tollParking', "w-full sm:p-5 p-4 border rounded-[1.5rem] sm:rounded-3xl outline-none shadow-inner font-black text-slate-700 text-lg sm:text-xl")}
+            className={getFieldClass('tollParking', "w-full p-4 border rounded-xl outline-none shadow-inner font-black text-slate-700 text-base")}
             placeholder="0"
           />
         </div>
 
         {/* Forensic Validation (Signature) */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center justify-between">
             <span>Guest Signature</span>
             <span className="text-rose-500 text-base">*</span>
           </label>
-          <div className={`mt-2 bg-white rounded-xl sm:rounded-[2rem] overflow-hidden border-2 transition-all ${signatureError ? 'border-rose-500 ring-8 ring-rose-500/5' : 'border-slate-100 shadow-inner focus-within:border-primary'}`}>
+          <div className={`mt-1 bg-white rounded-xl overflow-hidden border-2 transition-all ${signatureError ? 'border-rose-500 ring-4 ring-rose-500/5' : 'border-slate-100 shadow-inner focus-within:border-primary'}`}>
             <SignatureCanvas ref={sigPadRef} onBegin={handleSigBegin} />
           </div>
           <div className="flex justify-between items-center">
             {signatureError ?
-              <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><AlertCircle className="w-4 h-4" /> Required Security Check</p> :
+              <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><AlertCircle className="w-4 h-4" /> Required</p> :
               <div />
             }
-            <button type="button" onClick={() => sigPadRef.current?.clear()} className="sm:p-3 p-2 px-5 sm:px-6 bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-xl sm:rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">Clear Signature</button>
+            <button type="button" onClick={() => sigPadRef.current?.clear()} className="p-2 px-4 bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">Clear</button>
           </div>
         </div>
 
         {/* Command Actions */}
-        <div className="pt-6">
+        <div className="pt-4">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="btn btn-primary !w-full !rounded-[2.5rem] !py-8 !shadow-primary/20 group active:scale-95 transition-transform !text-amber-950"
+            className="btn btn-primary !w-full !rounded-2xl !py-5 !shadow-primary/20 group active:scale-95 transition-transform !text-amber-950"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="animate-spin h-7 w-7" />
-                <span className="uppercase tracking-wider sm:tracking-[0.3em] font-black text-base sm:text-lg">Submitting Trip Sheet...</span>
+                <Loader2 className="animate-spin h-5 w-5" />
+                <span className="uppercase tracking-wider font-black text-sm">Submitting...</span>
               </>
             ) : (
               <>
-                <span className="uppercase tracking-wider sm:tracking-[0.3em] font-black text-lg sm:text-xl">Submit Trip Sheet</span>
-                <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8 group-hover:translate-x-2 transition-transform opacity-30" />
+                <span className="uppercase tracking-wider font-black text-base">Submit Trip Sheet</span>
+                <ChevronRight className="w-5 h-5 group-hover:translate-x-2 transition-transform opacity-30" />
               </>
             )}
           </button>
