@@ -271,14 +271,14 @@ export const generateSinglePDF = async (trip: TripData, settings: AppSettings, s
     y += gridH + 10;
 
     doc.setDrawColor(COLORS.border[0], COLORS.border[1], COLORS.border[2]);
-    doc.roundedRect(MARGIN, y, 60, 20, 2, 2);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(COLORS.label[0], COLORS.label[1], COLORS.label[2]);
-    doc.text("Toll & Parking Charges:", MARGIN + 4, y + 6);
+    doc.setLineWidth(0.2);
+    doc.roundedRect(MARGIN, y, 45, 15, 2, 2);
+    doc.setFontSize(5.6);
+    doc.text("Toll & Parking Charges:", MARGIN + 4, y + 5);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
+    doc.setFontSize(9.8);
     doc.setTextColor(COLORS.primary[0], COLORS.primary[1], COLORS.primary[2]);
-    doc.text(`Rs. ${String(trip.tollParking || 0)}`, MARGIN + 4, y + 15);
+    doc.text(`Rs. ${String(trip.tollParking || 0)}`, MARGIN + 4, y + 11);
 
     const sigW = 50;
     const sigH = 20;
