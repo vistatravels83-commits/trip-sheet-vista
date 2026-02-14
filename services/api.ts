@@ -290,3 +290,25 @@ export const saveSettings = async (settings: AppSettings): Promise<boolean> => {
     return false;
   }
 };
+
+/**
+ * Subscribes to real-time changes in the 'trips' table.
+ * @param onUpdate Callback function to handle the updated trip data.
+ */
+export const subscribeToTrips = (onUpdate: () => void) => {
+  if (!supabase) return null;
+
+  const subscription = supabase
+    .channel('trips-realtime')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'trips' },
+      () => {
+        console.log('Real-time trip update received');
+        onUpdate();
+      }
+    )
+    .subscribe();
+
+  return subscription;
+};

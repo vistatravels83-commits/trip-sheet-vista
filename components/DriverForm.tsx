@@ -4,13 +4,41 @@ import { FormData, TripData, AppSettings } from '../types';
 import SignatureCanvas, { SignatureRef } from './SignatureCanvas';
 import { saveTrip, getAllDashboardData, DEFAULT_CAR_TYPES, DEFAULT_COMPANIES } from '../services/api';
 import { format, differenceInMinutes } from 'date-fns';
-import { CheckCircle, AlertCircle, Loader2, Calendar, Clock, WifiOff, Wifi } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, Calendar, Clock, WifiOff, Wifi, Car, MapPin, User, ChevronRight, Activity, Building2, CheckCircle2, XCircle } from 'lucide-react';
+
+const SuccessScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
+  const [timeLeft, setTimeLeft] = useState(15);
+
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      onFinish();
+      return;
+    }
+    const timer = setInterval(() => {
+      setTimeLeft(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, onFinish]);
+
+  return (
+    <div className="max-w-md mx-auto min-h-[85vh] flex flex-col items-center justify-center sm:p-8 p-6 animate-fade-in text-center">
+      <div className="sm:w-24 sm:h-24 w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mb-6 sm:mb-8 shadow-xl shadow-primary/20 border-4 border-white">
+        <CheckCircle2 className="sm:w-12 sm:h-12 w-10 h-10 text-primary animate-bounce" />
+      </div>
+      <h2 className="text-3xl sm:text-4xl font-black font-outfit text-amber-950 mb-3 tracking-tight text-center uppercase">Successfully Created</h2>
+      <p className="text-amber-900/60 font-bold max-w-[280px] text-sm sm:text-base">Trip logged and dashboard updated.</p>
+      <div className="mt-8 text-xs font-black text-slate-400 uppercase tracking-widest animate-pulse">
+        Redirecting in {timeLeft} seconds...
+      </div>
+    </div>
+  );
+};
 
 const DriverForm: React.FC = () => {
   const getTodayDate = () => format(new Date(), 'yyyy-MM-dd');
   const getCurrentTime = () => format(new Date(), 'HH:mm');
 
-  const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm<FormData>({
     defaultValues: {
       startDate: getTodayDate(),
       startTime: getCurrentTime(),
@@ -40,9 +68,29 @@ const DriverForm: React.FC = () => {
   const [agencyName, setAgencyName] = useState('Vista Travels');
   const sigPadRef = useRef<SignatureRef>(null);
 
+  const getFieldClass = (fieldName: keyof FormData, baseClasses: string = "") => {
+    const hasError = !!errors[fieldName];
+    return `${baseClasses} ${hasError ? 'border-rose-500 ring-4 ring-rose-500/10 focus:ring-rose-500/20' : 'border-slate-200 focus:ring-primary/10'}`;
+  };
+
+  const handleNumericInput = (fieldName: keyof FormData, allowZeroValue: boolean = false) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+
+    // Remove leading zeros
+    if (val.length > 1 && val.startsWith('0')) {
+      val = val.replace(/^0+/, '');
+    }
+
+    // For fields that cannot be absolute 0
+    if (!allowZeroValue && val === '0') {
+      val = '';
+    }
+
+    setValue(fieldName, val as any);
+  };
+
   useEffect(() => {
     const initData = async () => {
-      // First try to load from session storage for immediate UI
       const cached = sessionStorage.getItem('vista_cache_all');
       if (cached) {
         const d = JSON.parse(cached);
@@ -53,36 +101,25 @@ const DriverForm: React.FC = () => {
 
       try {
         const data = await getAllDashboardData();
-        if (data.fetchError) {
-          setInitError("Backend connection failed");
-          console.warn("Running in offline/cached mode due to:", data.fetchError);
-        } else {
-          setInitError(null);
-        }
+        if (data.fetchError) setInitError("Backend sync issues");
+        else setInitError(null);
 
         if (data.companies?.length) setCompanyOptions(data.companies.sort());
         if (data.carTypes?.length) setCarTypeOptions(data.carTypes.sort());
         if (data.settings?.agencyName) setAgencyName(data.settings.agencyName);
       } catch (e: any) {
-        console.error("Failed to sync latest data", e);
         setInitError("Network Error");
       }
     };
     initData();
   }, []);
 
-  const startKm = watch('startKm');
-  const endKm = watch('endKm');
-  const startDate = watch('startDate');
-  const startTime = watch('startTime');
-  const endDate = watch('endDate');
-  const endTime = watch('endTime');
-
-  const totalKm = (startKm !== undefined && endKm !== undefined) ? endKm - startKm : 0;
+  const totalKm = (watch('startKm') !== undefined && watch('endKm') !== undefined) ? watch('endKm') - watch('startKm') : 0;
 
   let durationDisplay = "0h 0m";
-  if (startDate && startTime && endDate && endTime) {
-    const d1 = new Date(`${startDate}T${startTime}`), d2 = new Date(`${endDate}T${endTime}`);
+  const sd = watch('startDate'), st = watch('startTime'), ed = watch('endDate'), et = watch('endTime');
+  if (sd && st && ed && et) {
+    const d1 = new Date(`${sd}T${st}`), d2 = new Date(`${ed}T${et}`);
     if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
       const diff = differenceInMinutes(d2, d1);
       if (diff >= 0) durationDisplay = `${Math.floor(diff / 60)}h ${diff % 60}m`;
@@ -93,13 +130,9 @@ const DriverForm: React.FC = () => {
 
   const onSubmit = async (data: FormData) => {
     setErrorMessage('');
+    // Signature is handled manually as it's not a standard form field
     if (sigPadRef.current?.isEmpty()) {
       setSignatureError(true);
-      return;
-    }
-
-    if (data.startKm > 0 && data.endKm > 0 && Number(data.endKm) < Number(data.startKm)) {
-      alert("End KM cannot be less than Start KM");
       return;
     }
 
@@ -111,12 +144,8 @@ const DriverForm: React.FC = () => {
       const trimmed = sigPadRef.current?.getTrimmedCanvas();
 
       if (trimmed) {
-        // Create a temporary canvas to resize/compress the image
-        // Max width 500px ensures payload isn't too large for GAS
         const maxWidth = 500;
-        let newWidth = trimmed.width;
-        let newHeight = trimmed.height;
-
+        let newWidth = trimmed.width, newHeight = trimmed.height;
         if (newWidth > maxWidth) {
           const ratio = maxWidth / newWidth;
           newWidth = maxWidth;
@@ -124,22 +153,19 @@ const DriverForm: React.FC = () => {
         }
 
         const white = document.createElement('canvas');
-        white.width = newWidth;
-        white.height = newHeight;
+        white.width = newWidth; white.height = newHeight;
         const ctx = white.getContext('2d');
-
         if (ctx) {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, white.width, white.height);
-          // Draw scaled image
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, white.width, white.height);
           ctx.drawImage(trimmed, 0, 0, trimmed.width, trimmed.height, 0, 0, newWidth, newHeight);
-          // High signature quality (0.9) ensures it looks sharp in the PDF
           signatureData = white.toDataURL('image/jpeg', 0.9);
         }
       }
 
+      const id = `VT-${format(new Date(), 'yyyyMMdd')}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`;
+
       const tripData: TripData = {
-        id: "",
+        id,
         companyName: data.companyName || '',
         bookedBy: data.bookedBy || '',
         reportTo: data.reportTo || '',
@@ -159,213 +185,255 @@ const DriverForm: React.FC = () => {
         timestamp: new Date().toISOString()
       };
 
-      const result = await saveTrip(tripData);
-
-      if (result) {
+      if (await saveTrip(tripData)) {
         setSubmitStatus('success');
         reset({
-          startDate: getTodayDate(),
-          startTime: getCurrentTime(),
-          endDate: getTodayDate(),
-          endTime: getCurrentTime(),
-          tollParking: 0,
-          companyName: '',
-          carType: '',
-          tripType: 'One way',
-          source: '',
-          destination: '',
-          vehicleRegNo: '',
-          startKm: 0,
-          endKm: 0,
-          bookedBy: '',
-          reportTo: ''
+          startDate: getTodayDate(), startTime: getCurrentTime(), endDate: getTodayDate(), endTime: getCurrentTime(),
+          tollParking: 0, companyName: '', carType: '', tripType: 'One way',
+          source: '', destination: '', vehicleRegNo: '', startKm: 0, endKm: 0,
+          bookedBy: '', reportTo: ''
         });
         sigPadRef.current?.clear();
-        setTimeout(() => setSubmitStatus('idle'), 5000);
       } else {
-        throw new Error("Server returned an unexpected response.");
+        throw new Error("Cloud sync failed");
       }
     } catch (err: any) {
-      console.error("Submission error:", err);
       setSubmitStatus('error');
-
-      let msg = err.message || "Failed to save trip.";
-      if (msg.includes("404")) msg = "Backend not reachable (404). Check internet or config.";
-      if (msg.includes("500")) msg = "Server error. Please try again later.";
-
-      setErrorMessage(msg);
+      setErrorMessage(err.message || "Failed to save trip.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (submitStatus === 'success') {
+    return <SuccessScreen onFinish={() => setSubmitStatus('idle')} />;
+  }
+
   return (
-    <div className="max-w-lg mx-auto bg-white shadow-xl rounded-2xl overflow-hidden">
-      <div className="bg-blue-800 p-6 text-white relative">
-        <h1 className="text-2xl font-bold">{agencyName}</h1>
-        <p className="text-blue-100 text-sm">Driver Trip Entry</p>
+    <div className="max-w-lg mx-auto glass sm:rounded-[3rem] rounded-2xl overflow-hidden shadow-2xl border border-white/50 bg-white/40 animate-fade-in m-4">
+      <div className="glass-dark sm:p-10 p-6 text-white relative">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl sm:text-4xl font-black font-outfit tracking-tighter uppercase">{agencyName}</h1>
+          <p className="text-primary text-[10px] font-black tracking-[0.3em] uppercase flex items-center gap-2">
+            <Activity className="w-3.5 h-3.5" />
+            Driver Trip Sheet
+          </p>
+        </div>
 
         {initError ? (
-          <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-1 bg-amber-500/20 text-amber-100 text-[10px] rounded border border-amber-500/30 backdrop-blur-sm" title={initError}>
-            <WifiOff className="w-3 h-3" /> Offline
+          <div className="absolute top-6 sm:top-10 right-6 sm:right-10 flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-rose-500/10 text-rose-300 text-[10px] font-black rounded-full border border-rose-500/20 glass">
+            <WifiOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> OFFLINE
           </div>
         ) : (
-          <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2 py-1 bg-green-500/20 text-green-100 text-[10px] rounded border border-green-500/30 backdrop-blur-sm">
-            <Wifi className="w-3 h-3" /> Online
+          <div className="absolute top-6 sm:top-10 right-6 sm:right-10 flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-500/10 text-emerald-400 text-[10px] font-black rounded-full border border-emerald-500/20 glass">
+            <Wifi className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> ONLINE
           </div>
         )}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5">
-        {/* Company Selection */}
-        <div>
-          <label className="text-sm font-semibold text-slate-700">Company Name</label>
+      <form onSubmit={handleSubmit(onSubmit)} className="sm:p-10 p-6 space-y-6 sm:space-y-8">
+        {/* Entity Choice */}
+        <div className="space-y-6">
+          <div className="group">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 mb-3">
+              <Building2 className="w-4 h-4 text-primary" /> Company Name
+            </label>
+            <input
+              list="companies" {...register('companyName', { required: true })}
+              className={getFieldClass('companyName', "w-full p-5 bg-white rounded-3xl outline-none transition-all shadow-inner font-bold text-slate-700 placeholder:text-slate-300 border")}
+              placeholder="Select Company"
+            />
+            <datalist id="companies">{companyOptions.map(o => <option key={o} value={o} />)}</datalist>
+          </div>
+
+          <div className="grid grid-cols-2 gap-5">
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block">Booked By</label>
+              <input {...register('bookedBy', { required: true })} className={getFieldClass('bookedBy', "w-full p-5 bg-white rounded-3xl focus:ring-4 outline-none shadow-inner font-bold border")} placeholder="Name" />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block">Report To</label>
+              <input {...register('reportTo', { required: true })} className={getFieldClass('reportTo', "w-full p-5 bg-white rounded-3xl focus:ring-4 outline-none shadow-inner font-bold border")} placeholder="Name" />
+            </div>
+          </div>
+        </div>
+
+        {/* Vehicle Details */}
+        <div className="bg-amber-50/20 sm:p-8 p-6 sm:rounded-[2.5rem] rounded-2xl border border-amber-100/30 space-y-5 sm:space-y-6">
+          <div className="grid grid-cols-2 gap-4 sm:gap-5">
+            <div>
+              <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest mb-2 sm:mb-3 block">Car Type</label>
+              <select {...register('carType', { required: true })} className={getFieldClass('carType', "w-full sm:p-5 p-4 bg-white border rounded-xl sm:rounded-[1.5rem] outline-none font-black text-slate-700 appearance-none shadow-sm cursor-pointer text-sm sm:text-base")}>
+                <option value="">Choose Type</option>
+                {carTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest mb-2 sm:mb-3 block">Trip Type</label>
+              <select {...register('tripType', { required: true })} className={getFieldClass('tripType', "w-full sm:p-5 p-4 bg-white border rounded-xl sm:rounded-[1.5rem] outline-none font-black text-slate-700 appearance-none shadow-sm cursor-pointer text-sm sm:text-base")}>
+                <option value="One way">One Way</option>
+                <option value="Round Trip">Round Trip</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest mb-2 sm:mb-3 block">Vehicle Registration Number</label>
+            <input {...register('vehicleRegNo', { required: true })} className={getFieldClass('vehicleRegNo', "w-full sm:p-5 p-4 bg-white border rounded-xl sm:rounded-[1.5rem] uppercase font-black text-xl sm:text-2xl tracking-widest outline-none shadow-sm text-amber-950 placeholder:text-slate-200")} placeholder="TN-00-AA-0000" />
+          </div>
+        </div>
+
+        {/* Mission Route */}
+        <div className="relative pt-2 pl-4">
+          <div className="absolute left-10 top-14 bottom-14 w-[1px] bg-slate-200 border-l border-dashed border-slate-300 opacity-50"></div>
+          <div className="space-y-6 sm:space-y-8">
+            <div className="relative pl-12 sm:pl-14">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white ring-4 ring-emerald-50 z-10 shadow-sm"></div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Source Point</label>
+              <input {...register('source', { required: true })} className={getFieldClass('source', "w-full sm:p-5 p-4 bg-white/40 border rounded-2xl sm:rounded-3xl outline-none shadow-sm font-bold text-sm sm:text-base")} placeholder="Departure" />
+            </div>
+            <div className="relative pl-12 sm:pl-14">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary border-4 border-white ring-4 ring-amber-50 z-10 shadow-sm"></div>
+              <label className="text-[10px] font-black text-amber-900/40 uppercase tracking-[0.3em] mb-2 block">Terminal Point</label>
+              <input {...register('destination', { required: true })} className={getFieldClass('destination', "w-full sm:p-5 p-4 bg-white/40 border rounded-2xl sm:rounded-3xl outline-none shadow-sm font-bold text-amber-950 text-sm sm:text-base")} placeholder="Arrival" />
+            </div>
+          </div>
+        </div>
+
+        {/* Telemetry Section */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+          <div className="bg-slate-50/30 sm:p-6 p-5 rounded-2xl sm:rounded-[2rem] border border-slate-100/50 space-y-4">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 sm:mb-3 flex items-center gap-2">
+              <Clock className="w-4 h-4 opacity-50" /> Log Schedule
+            </p>
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input type="date" {...register('startDate', { required: true })} className={getFieldClass('startDate', "w-full sm:p-4 p-3 border rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black bg-white outline-none shadow-sm")} />
+                <input type="time" {...register('startTime', { required: true })} className={getFieldClass('startTime', "w-full sm:p-4 p-3 border rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black bg-white outline-none shadow-sm")} />
+              </div>
+              <div className="flex gap-2">
+                <input type="date" {...register('endDate', { required: true })} className={getFieldClass('endDate', "w-full sm:p-4 p-3 border rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black bg-white outline-none shadow-sm")} />
+                <input type="time" {...register('endTime', { required: true })} className={getFieldClass('endTime', "w-full sm:p-4 p-3 border rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black bg-white outline-none shadow-sm")} />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-50/30 sm:p-6 p-5 rounded-2xl sm:rounded-[2rem] border border-slate-100/50 space-y-4">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 sm:mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4 opacity-50" /> Odometer Readings
+            </p>
+            <div className="space-y-4 relative pl-8">
+              <div className="absolute left-3 top-4 bottom-4 w-[1px] bg-slate-200 border-l border-dashed border-slate-300 opacity-30"></div>
+
+              <div className="relative">
+                <div className="absolute -left-7 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-emerald-500/50 border-2 border-white z-10 shadow-sm"></div>
+                <input
+                  type="number"
+                  {...register('startKm', {
+                    required: true,
+                    min: 1,
+                    pattern: { value: /^[1-9]\d*$/, message: "Leading zeros not allowed" }
+                  })}
+                  onInput={handleNumericInput('startKm')}
+                  className={getFieldClass('startKm', "w-full sm:p-4 p-3 border rounded-xl sm:rounded-2xl text-sm font-black bg-white outline-none shadow-sm")}
+                  placeholder="Start Reading"
+                />
+              </div>
+
+              <div className="relative">
+                <div className="absolute -left-7 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary/50 border-2 border-white z-10 shadow-sm"></div>
+                <input
+                  type="number"
+                  {...register('endKm', {
+                    required: true,
+                    min: 1,
+                    pattern: { value: /^[1-9]\d*$/, message: "Leading zeros not allowed" },
+                    validate: (value) => Number(value) >= Number(watch('startKm')) || "End KM must be greater than Start KM"
+                  })}
+                  onInput={handleNumericInput('endKm')}
+                  className={getFieldClass('endKm', "w-full sm:p-4 p-3 border rounded-xl sm:rounded-2xl text-sm font-black bg-white outline-none shadow-sm")}
+                  placeholder="End Reading"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Global Summary Tally */}
+        <div className="bg-primary sm:rounded-[2rem] rounded-2xl sm:p-8 p-6 text-amber-950 flex justify-between items-center shadow-2xl shadow-primary/20 group">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase opacity-60 tracking-[0.2em]">Net Odo</span>
+            <span className="text-2xl sm:text-3xl font-black font-outfit">{totalKm} <span className="text-xs sm:text-sm opacity-50">KM</span></span>
+          </div>
+          <div className="h-10 sm:h-12 w-[1px] bg-amber-950/20"></div>
+          <div className="flex flex-col text-right">
+            <span className="text-[10px] font-black uppercase opacity-60 tracking-[0.2em]">Trip Duration</span>
+            <span className="text-2xl sm:text-3xl font-black font-outfit">{durationDisplay}</span>
+          </div>
+        </div>
+
+        {/* Cash Disbursements */}
+        <div className="group">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between mb-3">
+            <span>Toll / Parking (Rs.)</span>
+            <Activity className="w-4 h-4 text-primary" />
+          </label>
           <input
-            list="companies"
-            {...register('companyName')}
-            className="w-full p-3 border border-slate-300 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-            placeholder="Select or enter company"
+            type="number"
+            {...register('tollParking', {
+              required: true,
+              min: 0,
+              pattern: { value: /^(0|[1-9]\d*)$/, message: "Leading zeros not allowed" }
+            })}
+            onInput={handleNumericInput('tollParking', true)}
+            className={getFieldClass('tollParking', "w-full sm:p-5 p-4 border rounded-[1.5rem] sm:rounded-3xl outline-none shadow-inner font-black text-slate-700 text-lg sm:text-xl")}
+            placeholder="0"
           />
-          <datalist id="companies">
-            {companyOptions.map(o => <option key={o} value={o} />)}
-          </datalist>
         </div>
 
-        {/* Client & Guest */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-semibold text-slate-700">Booked By</label>
-            <input {...register('bookedBy')} className="w-full p-3 border border-slate-300 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Client Name" />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-700">Report To</label>
-            <input {...register('reportTo')} className="w-full p-3 border border-slate-300 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Guest Name" />
-          </div>
-        </div>
-
-        {/* Car & Trip Type */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-semibold text-slate-700">Car Type</label>
-            <select {...register('carType')} className="w-full p-3 border border-slate-300 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-              <option value="">Select</option>
-              {carTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-700">Trip Type</label>
-            <select {...register('tripType')} className="w-full p-3 border border-slate-300 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-              <option value="One way">One way</option>
-              <option value="Round Trip">Round Trip</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Route */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-semibold text-slate-700">From</label>
-            <input {...register('source')} className="w-full p-3 border border-slate-300 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Source" />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-700">To</label>
-            <input {...register('destination')} className="w-full p-3 border border-slate-300 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Destination" />
-          </div>
-        </div>
-
-        {/* Vehicle */}
-        <div>
-          <label className="text-sm font-semibold text-slate-700">Vehicle Reg No.</label>
-          <input {...register('vehicleRegNo')} className="w-full p-3 border border-slate-300 rounded-lg mt-1 uppercase focus:ring-2 focus:ring-blue-500 outline-none" placeholder="TN-00-AA-0000" />
-        </div>
-
-        {/* Date & Time Section */}
-        <div className="bg-slate-50 p-4 rounded-xl space-y-4 border border-slate-200">
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5 mb-2">
-              <Calendar className="w-3.5 h-3.5" /> Start Date & Time
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <input type="date" {...register('startDate')} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
-              <input type="time" {...register('startTime')} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5 mb-2">
-              <Clock className="w-3.5 h-3.5" /> End Date & Time
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <input type="date" {...register('endDate')} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
-              <input type="time" {...register('endTime')} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-            <span className="text-sm font-medium text-slate-600">Total Duration:</span>
-            <span className="font-bold text-blue-700">{durationDisplay}</span>
-          </div>
-        </div>
-
-        {/* KM Section */}
-        <div className="bg-slate-50 p-4 rounded-xl space-y-4 border border-slate-200">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase">Start KM</label>
-              <input type="number" {...register('startKm')} className="w-full p-2.5 border border-slate-300 rounded-lg mt-1 bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase">End KM</label>
-              <input type="number" {...register('endKm')} className="w-full p-2.5 border border-slate-300 rounded-lg mt-1 bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0" />
-            </div>
-          </div>
-          <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-            <span className="text-sm font-medium text-slate-600">Total Distance:</span>
-            <span className="font-bold text-blue-700">{totalKm} km</span>
-          </div>
-        </div>
-
-        {/* Expenses */}
-        <div>
-          <label className="text-sm font-semibold text-slate-700">Tolls/Parking (Rs)</label>
-          <input type="number" {...register('tollParking')} className="w-full p-3 border border-slate-300 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0" />
-        </div>
-
-        {/* Signature */}
-        <div>
-          <label className="text-sm font-semibold text-slate-700">Guest Signature <span className="text-red-500">*</span></label>
-          <div className={`mt-2 ${signatureError ? 'ring-2 ring-red-500 rounded-lg' : ''}`}>
+        {/* Forensic Validation (Signature) */}
+        <div className="space-y-4">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center justify-between">
+            <span>Guest Signature</span>
+            <span className="text-rose-500 text-base">*</span>
+          </label>
+          <div className={`mt-2 bg-white rounded-xl sm:rounded-[2rem] overflow-hidden border-2 transition-all ${signatureError ? 'border-rose-500 ring-8 ring-rose-500/5' : 'border-slate-100 shadow-inner focus-within:border-primary'}`}>
             <SignatureCanvas ref={sigPadRef} onBegin={handleSigBegin} />
           </div>
-          {signatureError && <p className="text-red-500 text-xs mt-1.5 font-medium flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Signature is required to submit</p>}
-          <div className="text-right mt-1.5">
-            <button type="button" onClick={() => sigPadRef.current?.clear()} className="text-xs text-slate-500 hover:text-blue-600 font-medium transition-colors">Clear Signature</button>
+          <div className="flex justify-between items-center">
+            {signatureError ?
+              <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><AlertCircle className="w-4 h-4" /> Required Security Check</p> :
+              <div />
+            }
+            <button type="button" onClick={() => sigPadRef.current?.clear()} className="sm:p-3 p-2 px-5 sm:px-6 bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-xl sm:rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">Clear Signature</button>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="pt-4 space-y-4">
-          <button type="submit" disabled={isSubmitting} className="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-4 rounded-xl shadow-lg flex justify-center items-center gap-2 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
+        {/* Command Actions */}
+        <div className="pt-6">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="btn btn-primary !w-full !rounded-[2.5rem] !py-8 !shadow-primary/20 group active:scale-95 transition-transform !text-amber-950"
+          >
             {isSubmitting ? (
               <>
-                <Loader2 className="animate-spin h-5 w-5" />
-                <span>Processing...</span>
+                <Loader2 className="animate-spin h-7 w-7" />
+                <span className="uppercase tracking-wider sm:tracking-[0.3em] font-black text-base sm:text-lg">Submitting Trip Sheet...</span>
               </>
-            ) : "Submit Trip Sheet"}
+            ) : (
+              <>
+                <span className="uppercase tracking-wider sm:tracking-[0.3em] font-black text-lg sm:text-xl">Submit Trip Sheet</span>
+                <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8 group-hover:translate-x-2 transition-transform opacity-30" />
+              </>
+            )}
           </button>
 
-          {submitStatus === 'success' && (
-            <div className="p-4 bg-green-50 text-green-700 border border-green-200 rounded-xl flex items-center gap-3 text-sm font-medium animate-in fade-in slide-in-from-top-2">
-              <CheckCircle className="h-5 w-5" /> Trip sheet submitted successfully!
-            </div>
-          )}
-
           {submitStatus === 'error' && (
-            <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl flex items-start gap-3 text-sm font-medium animate-in fade-in slide-in-from-top-2">
-              <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div className="mt-8 p-6 bg-rose-50 text-rose-700 border border-rose-100 rounded-[2rem] flex items-start gap-5 animate-in fade-in slide-in-from-top-6">
+              <XCircle className="h-8 w-8 shrink-0 text-rose-400" />
               <div className="flex-1">
-                <div className="font-bold">Submission Failed</div>
-                <div className="text-xs opacity-90">{errorMessage || "Check your internet connection and try again."}</div>
+                <p className="font-black uppercase text-xs tracking-widest mb-1.5 opacity-60">Submission Error</p>
+                <p className="font-bold text-sm">{errorMessage || "Failed to send data. Please check your connection and try again."}</p>
               </div>
             </div>
           )}

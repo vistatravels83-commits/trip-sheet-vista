@@ -10,23 +10,23 @@
     "test:e2e": "cypress open"
   },
   "dependencies": {
-    "react": "^19.2.1",
-    "jspdf": "^3.0.4",
-    "react-dom": "^19.2.1",
+    "@supabase/supabase-js": "^2.95.3",
     "date-fns": "^4.1.0",
-    "lucide-react": "^0.556.0",
-    "react-router-dom": "^7.10.1",
-    "react-hook-form": "^7.68.0",
     "file-saver": "^2.0.5",
+    "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.2",
     "jszip": "^3.10.1",
-    "react-signature-canvas": "^1.1.0-alpha.2",
-    "@supabase/supabase-js": "^2.48.1"
+    "lucide-react": "^0.564.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "react-hook-form": "^7.71.1",
+    "react-router-dom": "^7.10.1",
+    "react-signature-canvas": "^1.1.0-alpha.2"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
+    "@types/node": "^25.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "vite": "^7.3.1"
   }
 }
