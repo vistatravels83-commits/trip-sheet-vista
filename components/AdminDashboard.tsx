@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from '
 import { TripData, AppSettings } from '../types';
 import { getAllDashboardData, addCompany, deleteCompany, updateTrip, saveSettings, addCarType, deleteCarType, subscribeToTrips } from '../services/api';
 import { generateSinglePDF, generateBulkPDF } from '../services/pdfGenerator';
-import { FileText, Download, RefreshCw, Archive, Search, Building2, Trash2, Plus, Car, Settings as SettingsIcon, Save, Upload, CarFront, MapPin, Activity, Zap, TrendingUp, Users, Fuel, CheckCircle2, XCircle } from 'lucide-react';
+import { generateCSV } from '../services/csvGenerator';
+import { FileText, Download, RefreshCw, Archive, Search, Building2, Trash2, Plus, Car, Settings as SettingsIcon, Save, Upload, CarFront, MapPin, Activity, Zap, TrendingUp, Users, Fuel, CheckCircle2, XCircle, FileSpreadsheet, FileOutput } from 'lucide-react';
 import { format, differenceInMinutes, isToday } from 'date-fns';
 
 // --- Toast System Components ---
@@ -40,6 +41,7 @@ const TripRow = memo(({
     onSelect,
     onUpdate,
     onSave,
+    onEdit,
     onDownload,
     saving,
     carTypes,
@@ -49,7 +51,8 @@ const TripRow = memo(({
     selected: boolean;
     onSelect: () => void;
     onUpdate: (timestamp: string, updates: Partial<TripData>) => void;
-    onSave: () => void;
+    onSave: (updates?: Partial<TripData>) => void;
+    onEdit: (timestamp: string) => void;
     onDownload: () => void;
     saving: boolean;
     carTypes: string[];
@@ -67,12 +70,10 @@ const TripRow = memo(({
     };
 
     const handleIdSave = () => {
+        // Optimistically update local UI state
         onUpdate(trip.timestamp, { id: localId });
-        // The parent onSave will be called after state update via onUpdate
-        // But since onUpdate is likely an async state update in parent, 
-        // we might need to be careful. However, based on implementation, 
-        // onUpdate just updates the local trips array in parent.
-        setTimeout(() => onSave(), 100);
+        // Trigger save with the explicit new ID to avoid race conditions with state propagation
+        onSave({ id: localId });
     };
 
     const handleIdCancel = () => {
@@ -96,6 +97,7 @@ const TripRow = memo(({
                             type="text"
                             value={localId}
                             onChange={(e) => setLocalId(e.target.value)}
+                            onFocus={() => onEdit(trip.timestamp)}
                             placeholder="ID"
                             className={`w-28 p-2 text-xs border rounded-xl font-bold outline-none shadow-inner transition-all ${isIdDirty ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200' : 'border-slate-200 bg-slate-50 text-slate-500'}`}
                         />
@@ -126,14 +128,16 @@ const TripRow = memo(({
                     type="text"
                     value={trip.vehicleRegNo || ''}
                     onChange={(e) => onUpdate(trip.timestamp, { vehicleRegNo: e.target.value.toUpperCase() })}
-                    onBlur={onSave}
+                    onFocus={() => onEdit(trip.timestamp)}
+                    onBlur={() => onSave()}
                     className="w-full p-2 text-xs border border-slate-200 rounded-xl font-black uppercase focus:ring-4 focus:ring-primary/10 outline-none bg-white tracking-widest"
                 />
                 <div className="flex gap-2">
                     <select
                         value={trip.carType || ''}
                         onChange={(e) => onUpdate(trip.timestamp, { carType: e.target.value })}
-                        onBlur={onSave}
+                        onFocus={() => onEdit(trip.timestamp)}
+                        onBlur={() => onSave()}
                         className="w-1/2 text-[10px] p-1.5 border border-slate-200 rounded-xl bg-slate-50 focus:ring-4 focus:ring-primary/10 outline-none font-bold"
                     >
                         <option value="">Car Type</option>
@@ -142,7 +146,8 @@ const TripRow = memo(({
                     <select
                         value={trip.tripType || 'Local'}
                         onChange={(e) => onUpdate(trip.timestamp, { tripType: e.target.value })}
-                        onBlur={onSave}
+                        onFocus={() => onEdit(trip.timestamp)}
+                        onBlur={() => onSave()}
                         className="w-1/2 text-[10px] p-1.5 border border-slate-200 rounded-xl bg-slate-50 focus:ring-4 focus:ring-primary/10 outline-none font-bold"
                     >
                         <option value="Local">Local</option><option value="Outstation">Outstation</option>
@@ -150,24 +155,24 @@ const TripRow = memo(({
                 </div>
             </td>
             <td className="p-4 space-y-2">
-                <input type="text" value={trip.source || ''} onChange={(e) => onUpdate(trip.timestamp, { source: e.target.value })} onBlur={onSave} placeholder="Source" className="w-full p-2 text-xs border border-slate-200 rounded-xl block focus:ring-4 focus:ring-primary/10 outline-none bg-white" />
-                <input type="text" value={trip.destination || ''} onChange={(e) => onUpdate(trip.timestamp, { destination: e.target.value })} onBlur={onSave} placeholder="Destination" className="w-full p-2 text-xs border border-slate-200 rounded-xl block focus:ring-4 focus:ring-primary/10 outline-none bg-white" />
+                <input type="text" value={trip.source || ''} onChange={(e) => onUpdate(trip.timestamp, { source: e.target.value })} onFocus={() => onEdit(trip.timestamp)} onBlur={() => onSave()} placeholder="Source" className="w-full p-2 text-xs border border-slate-200 rounded-xl block focus:ring-4 focus:ring-primary/10 outline-none bg-white" />
+                <input type="text" value={trip.destination || ''} onChange={(e) => onUpdate(trip.timestamp, { destination: e.target.value })} onFocus={() => onEdit(trip.timestamp)} onBlur={() => onSave()} placeholder="Destination" className="w-full p-2 text-xs border border-slate-200 rounded-xl block focus:ring-4 focus:ring-primary/10 outline-none bg-white" />
             </td>
             <td className="p-4 space-y-2">
-                <input type="datetime-local" value={formatDateForInput(trip.startDateTime)} onChange={(e) => onUpdate(trip.timestamp, { startDateTime: e.target.value })} onBlur={onSave} className="p-2 border border-slate-200 rounded-xl text-[10px] block w-full focus:ring-4 focus:ring-primary/10 outline-none bg-white font-bold" />
-                <input type="datetime-local" value={formatDateForInput(trip.endDateTime)} onChange={(e) => onUpdate(trip.timestamp, { endDateTime: e.target.value })} onBlur={onSave} className="p-2 border border-slate-200 rounded-xl text-[10px] block w-full focus:ring-4 focus:ring-primary/10 outline-none bg-white font-bold" />
+                <input type="datetime-local" value={formatDateForInput(trip.startDateTime)} onChange={(e) => onUpdate(trip.timestamp, { startDateTime: e.target.value })} onFocus={() => onEdit(trip.timestamp)} onBlur={() => onSave()} className="p-2 border border-slate-200 rounded-xl text-[10px] block w-full focus:ring-4 focus:ring-primary/10 outline-none bg-white font-bold" />
+                <input type="datetime-local" value={formatDateForInput(trip.endDateTime)} onChange={(e) => onUpdate(trip.timestamp, { endDateTime: e.target.value })} onFocus={() => onEdit(trip.timestamp)} onBlur={() => onSave()} className="p-2 border border-slate-200 rounded-xl text-[10px] block w-full focus:ring-4 focus:ring-primary/10 outline-none bg-white font-bold" />
             </td>
             <td className="p-4 space-y-2">
-                <input type="text" value={trip.bookedBy || ''} onChange={(e) => onUpdate(trip.timestamp, { bookedBy: e.target.value })} onBlur={onSave} placeholder="Booked By" className="w-full p-2 text-xs border border-slate-200 rounded-xl block focus:ring-4 focus:ring-primary/10 outline-none bg-white" />
-                <input type="text" value={trip.reportTo || ''} onChange={(e) => onUpdate(trip.timestamp, { reportTo: e.target.value })} onBlur={onSave} placeholder="Report To" className="w-full p-2 text-xs border border-slate-200 rounded-xl block focus:ring-4 focus:ring-primary/10 outline-none bg-white" />
+                <input type="text" value={trip.bookedBy || ''} onChange={(e) => onUpdate(trip.timestamp, { bookedBy: e.target.value })} onFocus={() => onEdit(trip.timestamp)} onBlur={() => onSave()} placeholder="Booked By" className="w-full p-2 text-xs border border-slate-200 rounded-xl block focus:ring-4 focus:ring-primary/10 outline-none bg-white" />
+                <input type="text" value={trip.reportTo || ''} onChange={(e) => onUpdate(trip.timestamp, { reportTo: e.target.value })} onFocus={() => onEdit(trip.timestamp)} onBlur={() => onSave()} placeholder="Report To" className="w-full p-2 text-xs border border-slate-200 rounded-xl block focus:ring-4 focus:ring-primary/10 outline-none bg-white" />
             </td>
             <td className="sm:p-4 p-2.5">
-                <input type="text" list="company_list" value={trip.companyName || ''} onChange={(e) => onUpdate(trip.timestamp, { companyName: e.target.value })} onBlur={onSave} className="w-full p-2 text-xs border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 outline-none bg-white font-bold" />
+                <input type="text" list="company_list" value={trip.companyName || ''} onChange={(e) => onUpdate(trip.timestamp, { companyName: e.target.value })} onFocus={() => onEdit(trip.timestamp)} onBlur={() => onSave()} className="w-full p-2 text-xs border border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/10 outline-none bg-white font-bold" />
             </td>
             <td className="p-4 text-center font-mono space-y-2">
                 <div className="flex flex-col gap-2 items-center">
-                    <input type="number" value={trip.startKm || 0} onChange={(e) => onUpdate(trip.timestamp, { startKm: parseInt(e.target.value) || 0 })} onBlur={onSave} className="w-24 p-2 text-center border border-slate-200 rounded-xl text-xs focus:ring-4 focus:ring-primary/10 outline-none bg-white font-bold" />
-                    <input type="number" value={trip.endKm || 0} onChange={(e) => onUpdate(trip.timestamp, { endKm: parseInt(e.target.value) || 0 })} onBlur={onSave} className="w-24 p-2 text-center border border-slate-200 rounded-xl text-xs focus:ring-4 focus:ring-primary/10 outline-none bg-white font-bold" />
+                    <input type="number" value={trip.startKm || 0} onChange={(e) => onUpdate(trip.timestamp, { startKm: parseInt(e.target.value) || 0 })} onFocus={() => onEdit(trip.timestamp)} onBlur={() => onSave()} className="w-24 p-2 text-center border border-slate-200 rounded-xl text-xs focus:ring-4 focus:ring-primary/10 outline-none bg-white font-bold" />
+                    <input type="number" value={trip.endKm || 0} onChange={(e) => onUpdate(trip.timestamp, { endKm: parseInt(e.target.value) || 0 })} onFocus={() => onEdit(trip.timestamp)} onBlur={() => onSave()} className="w-24 p-2 text-center border border-slate-200 rounded-xl text-xs focus:ring-4 focus:ring-primary/10 outline-none bg-white font-bold" />
                 </div>
             </td>
             <td className="p-4 space-y-2">
@@ -175,11 +180,11 @@ const TripRow = memo(({
                 <div className="flex flex-col gap-1.5">
                     <div className="relative">
                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-400 uppercase">Extra KM</span>
-                        <input type="number" value={trip.additionalKm || ''} onChange={(e) => onUpdate(trip.timestamp, { additionalKm: parseFloat(e.target.value) || 0 })} onBlur={onSave} className="w-full p-1.5 pl-12 border border-slate-200 rounded-lg text-right text-[10px] focus:ring-4 focus:ring-primary/10 outline-none bg-white font-black" />
+                        <input type="number" value={trip.additionalKm || ''} onChange={(e) => onUpdate(trip.timestamp, { additionalKm: parseFloat(e.target.value) || 0 })} onFocus={() => onEdit(trip.timestamp)} onBlur={() => onSave()} className="w-full p-1.5 pl-12 border border-slate-200 rounded-lg text-right text-[10px] focus:ring-4 focus:ring-primary/10 outline-none bg-white font-black" />
                     </div>
                     <div className="relative">
                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] font-black text-primary uppercase">Toll/Prk</span>
-                        <input type="number" value={trip.tollParking || ''} onChange={(e) => onUpdate(trip.timestamp, { tollParking: parseFloat(e.target.value) || 0 })} onBlur={onSave} className="w-full p-1.5 pl-12 border border-slate-200 rounded-lg text-right text-[10px] focus:ring-4 focus:ring-primary/10 outline-none bg-white font-black text-primary" />
+                        <input type="number" value={trip.tollParking || ''} onChange={(e) => onUpdate(trip.timestamp, { tollParking: parseFloat(e.target.value) || 0 })} onFocus={() => onEdit(trip.timestamp)} onBlur={() => onSave()} className="w-full p-1.5 pl-12 border border-slate-200 rounded-lg text-right text-[10px] focus:ring-4 focus:ring-primary/10 outline-none bg-white font-black text-primary" />
                     </div>
                 </div>
             </td>
@@ -224,6 +229,7 @@ const AdminDashboard: React.FC = () => {
     const [syncing, setSyncing] = useState(false);
     const [filter, setFilter] = useState('');
     const [savingRow, setSavingRow] = useState<string | null>(null);
+    const [editingTimestamp, setEditingTimestamp] = useState<string | null>(null);
     const [toasts, setToasts] = useState<Toast[]>([]);
 
     // Action States
@@ -231,6 +237,12 @@ const AdminDashboard: React.FC = () => {
     const [newCarType, setNewCarType] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
     const [settingsSaving, setSettingsSaving] = useState(false);
+
+    // Ref to always have the latest trips in async callbacks
+    const tripsRef = useRef<TripData[]>([]);
+    useEffect(() => {
+        tripsRef.current = trips;
+    }, [trips]);
 
     const addToast = useCallback((message: string, type: ToastType = 'success') => {
         const id = Math.random().toString(36).substring(2, 9);
@@ -248,13 +260,21 @@ const AdminDashboard: React.FC = () => {
         try {
             const data = await getAllDashboardData();
 
-            const sortedTrips = (data.trips || []).sort((a: any, b: any) => {
-                const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-                const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-                return tB - tA;
-            });
+            setTrips(prev => {
+                const sortedTrips = (data.trips || []).sort((a: any, b: any) => {
+                    const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                    const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                    return tB - tA;
+                });
 
-            setTrips(sortedTrips);
+                // Smart Merge: Don't overwrite the row we are currently editing
+                return sortedTrips.map(newTrip => {
+                    if (newTrip.timestamp === editingTimestamp) {
+                        return prev.find(t => t.timestamp === editingTimestamp) || newTrip;
+                    }
+                    return newTrip;
+                });
+            });
             setCompanies((data.companies || []).sort());
             setCarTypes((data.carTypes || []).sort());
             setSettings(data.settings);
@@ -342,11 +362,17 @@ const AdminDashboard: React.FC = () => {
         }));
     };
 
-    const handleSaveTrip = async (timestamp: string, trip: TripData) => {
+    const handleSaveTrip = async (timestamp: string, manualUpdates?: Partial<TripData>) => {
         setSavingRow(timestamp);
         try {
-            await updateTrip(timestamp, trip);
+            // Use ref to get the absolute latest state for this trip
+            const latestTrip = tripsRef.current.find(t => t.timestamp === timestamp);
+            if (!latestTrip) return;
+
+            const finalTripData = { ...latestTrip, ...manualUpdates };
+            await updateTrip(timestamp, finalTripData);
             addToast("Trip record updated successfully");
+            if (editingTimestamp === timestamp) setEditingTimestamp(null);
         } catch (e) {
             console.error("Save failed", e);
             addToast("Failed to update trip record", "error");
@@ -396,6 +422,29 @@ const AdminDashboard: React.FC = () => {
         } catch (e) {
             console.error("Export failed", e);
             addToast("Failed to export trip details", "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleExportToCSV = async () => {
+        if (!settings) return;
+        if (filteredTrips.length === 0) {
+            addToast("No trips found to export", "warning");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const success = generateCSV(filteredTrips, settings);
+            if (success) {
+                addToast(`Successfully exported ${filteredTrips.length} trip(s) to CSV`);
+            } else {
+                addToast("Failed to generate CSV file", "error");
+            }
+        } catch (e) {
+            console.error("CSV export failed", e);
+            addToast("Failed to export trip details to CSV", "error");
         } finally {
             setLoading(false);
         }
@@ -563,10 +612,16 @@ const AdminDashboard: React.FC = () => {
                             </div>
                         )}
                         {activeTab === 'trips' && (
-                            <button onClick={handleExportAllTrips} disabled={loading} className="btn btn-primary !rounded-[1.25rem] !px-8 !py-3 !shadow-primary/10 !text-amber-950 font-black">
-                                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                                EXPORT TRIP DETAILS
-                            </button>
+                            <div className="flex gap-2">
+                                <button onClick={handleExportToCSV} disabled={loading} className="btn btn-secondary !bg-emerald-600 !text-white !border-emerald-700 !rounded-[1.25rem] !px-8 !py-3 !shadow-emerald-500/10 font-black">
+                                    {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileOutput className="h-4 w-4" />}
+                                    EXPORT TO CSV
+                                </button>
+                                <button onClick={handleExportAllTrips} disabled={loading} className="btn btn-primary !rounded-[1.25rem] !px-8 !py-3 !shadow-primary/10 !text-amber-950 font-black">
+                                    {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                                    EXPORT TRIP DETAILS
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -625,7 +680,8 @@ const AdminDashboard: React.FC = () => {
                                                         selected={selectedTimestamps.has(trip.timestamp)}
                                                         onSelect={() => handleSelectOne(trip.timestamp)}
                                                         onUpdate={updateTripLocally}
-                                                        onSave={() => handleSaveTrip(trip.timestamp, trip)}
+                                                        onSave={(updates) => handleSaveTrip(trip.timestamp, updates)}
+                                                        onEdit={setEditingTimestamp}
                                                         onDownload={() => handleSingleDownload(trip)}
                                                         saving={savingRow === trip.timestamp}
                                                         carTypes={carTypes}

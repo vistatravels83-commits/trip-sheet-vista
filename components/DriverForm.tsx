@@ -7,7 +7,7 @@ import { format, differenceInMinutes } from 'date-fns';
 import { CheckCircle, AlertCircle, Loader2, Calendar, Clock, WifiOff, Wifi, Car, MapPin, User, ChevronRight, Activity, Building2, CheckCircle2, XCircle } from 'lucide-react';
 
 const SuccessScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
-  const [timeLeft, setTimeLeft] = useState(15);
+  const [timeLeft, setTimeLeft] = useState(5);
 
   useEffect(() => {
     if (timeLeft <= 0) {
