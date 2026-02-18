@@ -6,43 +6,12 @@ import { TripData, AppSettings } from '../types';
 // ==============================================================================
 
 /**
- * Robustly retrieves environment variables, checking:
- * 1. Vite's import.meta.env (with and without VITE_ prefix)
- * 2. Node's process.env (with and without VITE_ prefix)
+ * Retrieves environment variables using Vite's import.meta.env.
+ * Variables must be prefixed with VITE_ in the .env file and Netlify settings.
  */
 const getEnvVar = (key: string, fallback: string): string => {
-  const variations = [key, `VITE_${key}`, `REACT_APP_${key}`];
-  let value = '';
-
-  // 1. Try import.meta.env (Vite)
-  try {
-    // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      for (const v of variations) {
-        // @ts-ignore
-        if (import.meta.env[v]) {
-          value = import.meta.env[v];
-          break;
-        }
-      }
-    }
-  } catch (e) { }
-
-  // 2. Try process.env (Standard Node/Netlify)
-  if (!value) {
-    try {
-      if (typeof process !== 'undefined' && process.env) {
-        for (const v of variations) {
-          if (process.env[v]) {
-            value = process.env[v];
-            break;
-          }
-        }
-      }
-    } catch (e) { }
-  }
-
-  return value || fallback;
+  const viteKey = `VITE_${key}`;
+  return import.meta.env[viteKey] || import.meta.env[key] || fallback;
 };
 
 const SUPABASE_URL = getEnvVar('SUPABASE_URL', '');
@@ -62,8 +31,8 @@ if (isConfigured) {
     supabase = null;
   }
 } else {
-  console.warn("Supabase Config Missing: URL or Key not found. URL:", SUPABASE_URL ? "Set" : "Missing", "Key:", SUPABASE_KEY ? "Set" : "Missing");
-  console.warn("Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_KEY are set in your environment variables via Netlify Site Settings.");
+  console.warn("Supabase Config Missing — URL:", SUPABASE_URL ? "Set" : "Missing", "| Key:", SUPABASE_KEY ? "Set" : "Missing");
+  console.warn("Ensure VITE_SUPABASE_URL and VITE_SUPABASE_KEY are set in Netlify Site Settings > Environment Variables.");
 }
 
 export const DEFAULT_COMPANIES = ["Vista Travels HQ"];
@@ -89,7 +58,8 @@ const mapTripFromDB = (row: any): TripData => ({
   source: row.source,
   destination: row.destination,
   vehicleRegNo: row.vehicle_reg_no,
-  startKm: row.start_km,
+  startKm: 
+  .start_km,
   endKm: row.end_km,
   totalKm: row.total_km,
   startDateTime: row.start_date_time,
@@ -98,7 +68,7 @@ const mapTripFromDB = (row: any): TripData => ({
   tollParking: row.toll_parking,
   additionalKm: row.additional_km,
   signature: row.signature,
-  timestamp: row.created_at
+  timestamp: row.updated_at
 });
 
 const mapTripToDB = (data: TripData) => ({
@@ -120,7 +90,7 @@ const mapTripToDB = (data: TripData) => ({
   toll_parking: data.tollParking,
   additional_km: data.additionalKm,
   signature: data.signature,
-  created_at: data.timestamp
+  updated_at: data.timestamp
 });
 
 // --- API Functions ---
@@ -142,7 +112,7 @@ export const getAllDashboardData = async (): Promise<any> => {
   try {
     // Parallel fetch for efficiency
     const [tripsRes, companiesRes, carTypesRes, settingsRes] = await Promise.all([
-      supabase.from('trips').select('*').order('created_at', { ascending: false }),
+      supabase.from('trips').select('*').order('updated_at', { ascending: false }),
       supabase.from('companies').select('name').order('name'),
       supabase.from('car_types').select('name').order('name'),
       supabase.from('settings').select('*')
@@ -237,7 +207,7 @@ export const updateTrip = async (timestamp: string, updates: Partial<TripData>):
     const { error } = await supabase
       .from('trips')
       .update(dbUpdates)
-      .eq('created_at', timestamp);
+      .eq('updated_at', timestamp);
 
     if (error) throw error;
     return true;
