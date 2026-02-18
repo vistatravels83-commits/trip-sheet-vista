@@ -58,8 +58,7 @@ const mapTripFromDB = (row: any): TripData => ({
   source: row.source,
   destination: row.destination,
   vehicleRegNo: row.vehicle_reg_no,
-  startKm: 
-  .start_km,
+  startKm: row.start_km,
   endKm: row.end_km,
   totalKm: row.total_km,
   startDateTime: row.start_date_time,
