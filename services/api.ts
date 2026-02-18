@@ -12,6 +12,7 @@ import { TripData, AppSettings } from '../types';
  */
 const getEnvVar = (key: string, fallback: string): string => {
   const variations = [key, `VITE_${key}`, `REACT_APP_${key}`];
+  let value = '';
 
   // 1. Try import.meta.env (Vite)
   try {
@@ -19,40 +20,50 @@ const getEnvVar = (key: string, fallback: string): string => {
     if (typeof import.meta !== 'undefined' && import.meta.env) {
       for (const v of variations) {
         // @ts-ignore
-        if (import.meta.env[v]) return import.meta.env[v];
+        if (import.meta.env[v]) {
+          value = import.meta.env[v];
+          break;
+        }
       }
     }
   } catch (e) { }
 
   // 2. Try process.env (Standard Node/Netlify)
-  try {
-    if (typeof process !== 'undefined' && process.env) {
-      for (const v of variations) {
-        if (process.env[v]) return process.env[v];
+  if (!value) {
+    try {
+      if (typeof process !== 'undefined' && process.env) {
+        for (const v of variations) {
+          if (process.env[v]) {
+            value = process.env[v];
+            break;
+          }
+        }
       }
-    }
-  } catch (e) { }
+    } catch (e) { }
+  }
 
-  return fallback;
+  return value || fallback;
 };
 
-const SUPABASE_URL = getEnvVar('SUPABASE_URL', 'INSERT_YOUR_SUPABASE_URL');
-const SUPABASE_KEY = getEnvVar('SUPABASE_KEY', 'INSERT_YOUR_SUPABASE_KEY');
+const SUPABASE_URL = getEnvVar('SUPABASE_URL', '');
+const SUPABASE_KEY = getEnvVar('SUPABASE_KEY', '');
 
 // Initialize Supabase Client safely
 let supabase: any = null;
 
-const isConfigured = SUPABASE_URL && SUPABASE_URL.startsWith('http') && !SUPABASE_URL.includes('INSERT_YOUR');
+const isConfigured = SUPABASE_URL && SUPABASE_URL.startsWith('http') && SUPABASE_KEY;
 
 if (isConfigured) {
   try {
     supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log("Supabase Client Initialized Successfully");
   } catch (err) {
     console.error("Supabase Initialization Failed:", err);
     supabase = null;
   }
 } else {
-  console.warn("Supabase Config Missing: URL/Key not found. App running in offline/demo mode.");
+  console.warn("Supabase Config Missing: URL or Key not found. URL:", SUPABASE_URL ? "Set" : "Missing", "Key:", SUPABASE_KEY ? "Set" : "Missing");
+  console.warn("Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_KEY are set in your environment variables via Netlify Site Settings.");
 }
 
 export const DEFAULT_COMPANIES = ["Vista Travels HQ"];
